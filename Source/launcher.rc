@@ -1,0 +1,24 @@
+#include <windows.h>
+101 ICON "assets/app.ico"
+1 VERSIONINFO
+FILEVERSION 0,2,2,0
+PRODUCTVERSION 0,2,2,0
+FILETYPE VFT_APP
+BEGIN
+ BLOCK "StringFileInfo"
+ BEGIN
+  BLOCK "040904B0"
+  BEGIN
+   VALUE "FileDescription", "QOH99 Launcher\0"
+   VALUE "FileVersion", "0.2.2\0"
+   VALUE "ProductName", "QOH99 Launcher\0"
+   VALUE "ProductVersion", "0.2.2\0"
+   VALUE "CompanyName", "Thread-@tikiland.t\0"
+   VALUE "OriginalFilename", "QOH-Launcher.exe\0"
+  END
+ END
+ BLOCK "VarFileInfo"
+ BEGIN
+  VALUE "Translation", 0x409, 1200
+ END
+END

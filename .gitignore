@@ -1,0 +1,15 @@
+# Build output and locally generated release archives
+Source/build/
+Source/releases/
+*.obj
+*.pdb
+*.exe
+
+# Original game and private settings are never repository inputs
+System/
+LocalConfig/
+LauncherBackup/
+QOH-Launcher.ini
+QOHcnf.key
+*.avi
+*.mp4

@@ -1,0 +1,6 @@
+# Keep bundled shader sources and license notices byte-for-byte on checkout.
+LauncherShaders/** -text
+licenses/** -text
+*.dll binary
+*.ico binary
+*.png binary
