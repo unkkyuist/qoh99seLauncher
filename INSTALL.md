@@ -1,4 +1,4 @@
-# QOH99 Launcher 0.2.2 설치 안내
+# QOH99 Launcher 0.2.3 설치 안내
 
 제작·배포: **tikiland**
 
@@ -6,7 +6,7 @@
 방법입니다. 이 패키지만으로는 게임을 할 수 없습니다. 원본 게임, 캐릭터,
 사운드, 오프닝 영상과 개인 설정은 배포 ZIP에 들어 있지 않습니다.
 
-**0.2.2는 테스트 배포본입니다.** xBRZ와 1440×1080 창 모드 사용 중
+**0.2.3은 테스트 배포본입니다.** xBRZ와 1440×1080 창 모드 사용 중
 타이틀·캐릭터 선택 화면에서 응답 없음이 보고되었으며, 원인은 아직 확정되지
 않았습니다. 처음에는 원본 도트와 추가 효과 없음으로 실행하세요.
 
@@ -26,20 +26,20 @@
 ## 2. 실행용 ZIP 내려받기
 
 1. [프로젝트 Releases](https://github.com/unkkyuist/qoh99seLauncher/releases)를 엽니다.
-2. **0.2.2 테스트 배포** 항목의 **Assets**를 펼칩니다.
-3. **`QOH-Launcher-0.2.2.zip`**을 내려받습니다.
+2. **0.2.3 테스트 배포** 항목의 **Assets**를 펼칩니다.
+3. **`QOH-Launcher-0.2.3.zip`**을 내려받습니다.
 4. ZIP을 마우스 오른쪽 버튼으로 누르고 **모두 압축 풀기**를 선택합니다.
    우선 원본 게임 폴더와 다른 빈 폴더에 압축을 풉니다.
 
 GitHub의 초록색 **Code → Download ZIP**과 Releases 아래의 **Source code (zip)**은
-개발 소스용입니다. 실행하려면 이름이 정확히 `QOH-Launcher-0.2.2.zip`인 파일을 받으세요.
+개발 소스용입니다. 실행하려면 이름이 정확히 `QOH-Launcher-0.2.3.zip`인 파일을 받으세요.
 ZIP 안에서 EXE만 바로 실행하지 말고 먼저 압축을 전부 풀어야 합니다.
 
 다운로드를 확인하려면 같은 배포 항목의 `.sha256` 파일에 적힌 값과 ZIP의
 SHA256을 비교할 수 있습니다. PowerShell에서 ZIP이 있는 폴더를 연 뒤:
 
 ```powershell
-Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.2.zip' -Algorithm SHA256
+Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.3.zip' -Algorithm SHA256
 ```
 
 출력된 `Hash`가 배포 체크섬과 같아야 합니다. 해시 비교는 내려받은 파일의
@@ -107,7 +107,7 @@ Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.2.zip' -Algorithm SHA256
   그 밖의 기존 게임 파일과 폴더
 ```
 
-`내 QOH99 게임 폴더/QOH-Launcher-0.2.2/QOH-Launcher.exe`처럼 한 단계 더 안쪽에
+`내 QOH99 게임 폴더/QOH-Launcher-0.2.3/QOH-Launcher.exe`처럼 한 단계 더 안쪽에
 놓으면 원본 게임을 찾지 못합니다. **두 EXE가 나란히 있는지** 확인하세요.
 현재 버전에는 게임 폴더를 선택하는 설치 마법사가 없습니다.
 

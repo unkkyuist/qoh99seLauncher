@@ -2,12 +2,12 @@
 
 <img src="assets/icon.png" width="144" alt="tikiland 런처 아이콘">
 
-**0.2.2 테스트 버전** · 배포자 **tikiland** · Thread-@tikiland.t
+**0.2.3 테스트 버전** · 배포자 **tikiland** · Thread-@tikiland.t
 
 원본 **Queen of Heart 99 SE**용 Windows 런처입니다. 화면·필터·1P/2P 키를
 한곳에서 설정할 수 있습니다. 이 ZIP에는 원본 게임이 들어 있지 않습니다.
 
-**[런처 ZIP 다운로드](https://github.com/unkkyuist/qoh99seLauncher/releases/tag/v0.2.2)**
+**[런처 ZIP 다운로드](https://github.com/unkkyuist/qoh99seLauncher/releases/tag/v0.2.3)**
 · **[처음부터 따라 하는 상세 설치 방법](INSTALL.md)**
 · [문제 제보](https://github.com/unkkyuist/qoh99seLauncher/issues)
 
@@ -17,7 +17,7 @@
 
 ## 사용 방법
 
-1. 다운로드 페이지의 **Assets**에서 `QOH-Launcher-0.2.2.zip`을 받습니다.
+1. 다운로드 페이지의 **Assets**에서 `QOH-Launcher-0.2.3.zip`을 받습니다.
    `Source code (zip)`은 실행용 배포 파일이 아닙니다.
 2. QOH99·런처·원본 설정 도구를 종료하고, 받은 ZIP을 별도 폴더에 압축 해제합니다.
 3. **기존 게임 폴더 전체를 다른 위치에 복사해 백업**합니다.

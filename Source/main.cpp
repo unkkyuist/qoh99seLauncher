@@ -196,7 +196,9 @@ void SaveSettings() {
     };
     set(L"windowed",L"true"); set(L"fullscreen",mode==0?L"true":L"false");
     set(L"border",mode==0?L"false":L"true"); set(L"maintas",aspect?L"true":L"false");
-    set(L"aspect_ratio",aspect?L"4:3":L""); set(L"boxing",L"false");
+    // Use cnc-ddraw's built-in 4:3 constraint; custom aspect_ratio is an
+    // alternative mode and must stay empty to avoid applying both at once.
+    set(L"aspect_ratio",L""); set(L"boxing",L"false");
     set(L"width",mode==0?L"0":std::to_wstring(Widths[size]));
     set(L"height",mode==0?L"0":std::to_wstring(Heights[size]));
     set(L"posX",L"-32000"); set(L"posY",L"-32000");
@@ -409,7 +411,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,LPWSTR,int show) {
     AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(about),L"About");
     RECT rect{0,0,S(800),S(885)}; DWORD style=WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX;
     AdjustWindowRect(&rect,style,TRUE);
-    HWND hwnd=CreateWindowExW(WS_EX_CONTROLPARENT,ClassName,L"QOH99 Launcher 0.2.2",style,CW_USEDEFAULT,CW_USEDEFAULT,rect.right-rect.left,rect.bottom-rect.top,nullptr,menu,instance,nullptr);
+    HWND hwnd=CreateWindowExW(WS_EX_CONTROLPARENT,ClassName,L"QOH99 Launcher 0.2.3",style,CW_USEDEFAULT,CW_USEDEFAULT,rect.right-rect.left,rect.bottom-rect.top,nullptr,menu,instance,nullptr);
     if(!hwnd) return 1;
     ShowWindow(hwnd,show); UpdateWindow(hwnd);
     MSG m{};
