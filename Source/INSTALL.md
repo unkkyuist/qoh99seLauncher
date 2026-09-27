@@ -1,4 +1,4 @@
-# QOH99 Launcher 0.2.3 설치 안내
+# QOH99 Launcher 0.2.4 설치 안내
 
 제작·배포: **tikiland**
 
@@ -6,7 +6,8 @@
 방법입니다. 이 패키지만으로는 게임을 할 수 없습니다. 원본 게임, 캐릭터,
 사운드, 오프닝 영상과 개인 설정은 배포 ZIP에 들어 있지 않습니다.
 
-**0.2.3은 테스트 배포본입니다.** xBRZ와 1440×1080 창 모드 사용 중
+**0.2.4는 호환성 테스트 배포본입니다.** 다른 PC의 화면 잘림은 아직 해결 확인 전입니다.
+원본 화면 모드와 창 크기에 대한 보정을 추가했습니다. xBRZ와 1440×1080 창 모드 사용 중
 타이틀·캐릭터 선택 화면에서 응답 없음이 보고되었으며, 원인은 아직 확정되지
 않았습니다. 처음에는 원본 도트와 추가 효과 없음으로 실행하세요.
 
@@ -23,23 +24,22 @@
 런처 실행에 Visual Studio나 별도의 C++ 개발 도구를 설치할 필요는 없습니다.
 배포 실행 파일에는 Microsoft C++ 런타임이 정적으로 연결되어 있습니다.
 
-## 2. 실행용 ZIP 내려받기
+## 2. EXE 하나 내려받기
 
 1. [프로젝트 Releases](https://github.com/unkkyuist/qoh99seLauncher/releases)를 엽니다.
-2. **0.2.3 테스트 배포** 항목의 **Assets**를 펼칩니다.
-3. **`QOH-Launcher-0.2.3.zip`**을 내려받습니다.
-4. ZIP을 마우스 오른쪽 버튼으로 누르고 **모두 압축 풀기**를 선택합니다.
-   우선 원본 게임 폴더와 다른 빈 폴더에 압축을 풉니다.
+2. **0.2.4** 항목의 **Assets**를 펼칩니다.
+3. **`QOH-Launcher-0.2.4.exe`** 하나를 내려받습니다. 압축 해제는 필요 없습니다.
 
 GitHub의 초록색 **Code → Download ZIP**과 Releases 아래의 **Source code (zip)**은
-개발 소스용입니다. 실행하려면 이름이 정확히 `QOH-Launcher-0.2.3.zip`인 파일을 받으세요.
-ZIP 안에서 EXE만 바로 실행하지 말고 먼저 압축을 전부 풀어야 합니다.
+개발 소스용입니다. `QOH-Launcher-0.2.4.zip`은 실행 파일·문서·소스를 함께 보관하려는
+경우의 선택 사항입니다. ZIP을 받았다면 압축을 풀고 그 안의 `QOH-Launcher.exe`만
+게임 폴더에 복사해도 필요한 파일을 자동으로 준비합니다.
 
-다운로드를 확인하려면 같은 배포 항목의 `.sha256` 파일에 적힌 값과 ZIP의
-SHA256을 비교할 수 있습니다. PowerShell에서 ZIP이 있는 폴더를 연 뒤:
+다운로드를 확인하려면 같은 배포 항목의 `.exe.sha256` 파일에 적힌 값과 EXE의
+SHA256을 비교할 수 있습니다. PowerShell에서 EXE가 있는 폴더를 연 뒤:
 
 ```powershell
-Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.3.zip' -Algorithm SHA256
+Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.4.exe' -Algorithm SHA256
 ```
 
 출력된 `Hash`가 배포 체크섬과 같아야 합니다. 해시 비교는 내려받은 파일의
@@ -65,26 +65,19 @@ Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.3.zip' -Algorithm SHA256
 `System/QOHcnf.key`와 `LocalConfig/QOHcnf.key`를 한 폴더에 같은 이름으로
 복사하면 서로 덮일 수 있습니다. 반드시 `System`, `LocalConfig` 폴더를 구분해 보관하세요.
 
-런처의 자동 백업은 **설치를 위한 사전 백업을 대체하지 않습니다.** ZIP의
-`ddraw.dll`과 `ddraw.ini`를 복사하기 전에 사용하던 파일은 직접 보관해야 합니다.
+포터블 EXE는 교체할 DLL·필터 등을 `LauncherBackup/portable-*`에 자동 백업합니다.
+기존 `ddraw.ini`와 개인 설정은 첫 실행 시 보존합니다. 게임 전체의 기록을 함께
+보관하려면 위 방식으로 게임 폴더 전체를 복사해 둘 수 있습니다.
 
 ## 4. 원본 게임 폴더에 복사하기
 
-압축을 푼 폴더에서 다음 항목을 선택해 **`qoh99.exe`가 있는 폴더 안으로** 복사합니다.
+받은 `QOH-Launcher-0.2.4.exe`를 **`qoh99.exe`가 있는 폴더 안으로** 복사하고 실행합니다.
+런처가 DLL, 필터, 라이선스를 자동으로 준비합니다. 인터넷 연결이나 별도 설치는
+필요하지 않습니다. 기본 `ddraw.ini`는 기존 파일이 없을 때만 만듭니다.
 
-- `QOH-Launcher.exe`
-- `ddraw.dll`, `ddraw.ini`
-- **`LauncherShaders` 폴더 전체**
-- `licenses` 폴더, `LICENSE`, `THIRD-PARTY-NOTICES.md`, `README.md`, `INSTALL.md`
-
-게임 실행에 필요한 것은 런처 EXE, DLL, INI, 셰이더 폴더입니다. 안내 문서와
-라이선스도 함께 보관하세요. ZIP의 `Source`는 재빌드용 소스이고 `assets`는 아이콘
-파일입니다. 이 둘과 `MANIFEST.json`, `SHA256SUMS.txt`는 압축을 푼 보관 폴더에
-남겨도 됩니다. 게임 실행을 위해 `Source` 안의 프로그램을 따로 실행할 필요는 없습니다.
-
-이미 같은 이름의 `ddraw.dll` 또는 `ddraw.ini`가 있다는 알림이 나오면,
-**3단계 백업을 확인한 다음** 새 버전으로 교체하세요. 원본 게임의 `System` 폴더나
-캐릭터 폴더를 새 폴더로 바꾸거나 삭제하지 않습니다.
+다른 DLL이나 필터를 교체할 때는 원래 파일을 먼저 백업합니다. 파일 교체에 실패하면
+이미 교체한 파일을 복구하고 오류를 표시합니다. 복구에도 실패했다는 안내가 나오면
+`LauncherBackup/portable-*`에 보관한 파일을 원래 경로로 복사하세요.
 
 설치 후 구조는 아래와 같아야 합니다. 실제 게임 폴더 이름은 달라도 됩니다.
 
@@ -92,7 +85,7 @@ Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.3.zip' -Algorithm SHA256
 내 QOH99 게임 폴더/
   qoh99.exe                  ← 본인이 가진 원본 게임
   Config.exe                 ← 본인이 가진 원본 설정 도구
-  QOH-Launcher.exe            ← 새 런처
+  QOH-Launcher-0.2.4.exe      ← 새 런처
   ddraw.dll
   ddraw.ini
   LauncherShaders/
@@ -107,18 +100,19 @@ Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.3.zip' -Algorithm SHA256
   그 밖의 기존 게임 파일과 폴더
 ```
 
-`내 QOH99 게임 폴더/QOH-Launcher-0.2.3/QOH-Launcher.exe`처럼 한 단계 더 안쪽에
+`내 QOH99 게임 폴더/런처/QOH-Launcher-0.2.4.exe`처럼 한 단계 더 안쪽에
 놓으면 원본 게임을 찾지 못합니다. **두 EXE가 나란히 있는지** 확인하세요.
 현재 버전에는 게임 폴더를 선택하는 설치 마법사가 없습니다.
 
 ## 5. 처음 실행하기
 
-1. `QOH-Launcher.exe`를 더블클릭합니다.
+1. `QOH-Launcher-0.2.4.exe`를 더블클릭합니다.
 2. 화면 필터를 **원본 도트 (Nearest)**로 선택합니다.
 3. 추가 효과를 **없음**으로 선택합니다.
 4. 처음 비교할 때는 **창 모드**, 화면 안에 들어오는 창 크기와
    **원래 4:3 비율 유지**를 선택합니다.
 5. 키 설정을 확인한 뒤 **게임 시작**을 누릅니다.
+   Esc 지원 버전 오류가 나오면 **Esc 차단 체크를 해제**하고 다시 시작합니다.
 
 **게임 시작**은 현재 설정을 저장하고 게임을 실행합니다. **저장**은 실행 없이
 설정만 저장합니다. **게임으로 미리보기**도 현재 설정을 저장한 뒤 실제 게임을
@@ -140,6 +134,9 @@ Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.3.zip' -Algorithm SHA256
 
 창 크기는 원본 화면의 표시 크기입니다. 게임의 그림을 더 높은 해상도로 다시
 그리는 기능은 아닙니다. 필터는 캐릭터뿐 아니라 글자와 배경에도 적용됩니다.
+선택한 창이 기본 모니터 작업 영역보다 크면 테두리 높이를 포함해 4:3으로 줄여
+배치합니다. 게임 설정의 활성 프로필은 전체 화면으로 맞추고 실제 창/보더리스는
+화면 패치가 처리합니다. 원본 EXE는 수정하지 않습니다.
 
 효과는 **기본 필터 → 추가 효과** 순서입니다. 예를 들어 xBR 뒤에 주사선을
 적용하거나 CRT 뒤에 선명도 보정을 적용할 수 있습니다. **xBRZ는 자체적으로 두
@@ -207,20 +204,14 @@ a79002592953e8d9ace3e363b3115ce4452c1a0789eb5b17c9bcb032af27f1f6
 2. 현재 게임 폴더 전체를 새 이름으로 백업합니다. 최초 설치 전 백업도 보관합니다.
 3. 특히 `QOH-Launcher.ini`, `System/QOHcnf.key`, `LocalConfig/QOHcnf.key`와
    `LauncherBackup`은 그대로 보존합니다. 존재하는 항목만 보관하면 됩니다.
-4. 새 실행용 ZIP을 별도 폴더에 압축 해제합니다.
-5. 4단계의 런처·DLL·INI·`LauncherShaders`·문서·라이선스를 새 버전으로 복사합니다.
-   원본 게임 폴더나 개인 설정 파일을 지우지 않습니다.
+4. 새 버전 EXE 하나를 게임 폴더에 넣습니다.
+5. 새 EXE를 실행하면 필요한 DLL·필터·라이선스가 백업 후 자동으로 준비됩니다.
 6. 새 런처를 열고 화면·필터·키·Esc 선택을 확인한 뒤 **저장** 또는 **게임 시작**을 누릅니다.
 
-배포 ZIP에는 `QOH-Launcher.ini`와 `QOHcnf.key`가 없으므로 정상적인 파일 복사로
-이 개인 설정을 덮어쓰지는 않습니다. 하지만 배포용 **`ddraw.ini`는 새 기본값으로
-교체됩니다.** 기존 `QOH-Launcher.ini`를 남겨두면 런처가 이전 선택을 읽고,
-저장·실행할 때 화면 설정을 다시 적용합니다. 업데이트 직후 원본 EXE를 바로 실행하기
-전에 런처에서 한 번 적용하세요.
-
-`ddraw.ini`를 직접 편집해 사용하던 별도 옵션까지 런처가 복원하는 것은 아닙니다.
-그런 옵션은 이전 INI 백업과 비교해야 합니다. 문제가 생기면 업데이트 직전 백업으로
-돌아갈 수 있도록 새 버전의 파일과 백업을 구분해 보관하세요.
+EXE의 자동 준비 과정은 기존 `QOH-Launcher.ini`, `QOHcnf.key`, `ddraw.ini`를
+덮어쓰지 않습니다. **저장/게임 시작**을 누를 때 런처의 선택과 화면 보정이 설정에
+반영됩니다. ZIP 전체를 수동으로 덮어쓰면 그 안의 `ddraw.ini`가 기존 설정을
+교체하므로, 설정을 보존하려면 EXE만 복사하는 방식을 사용하세요.
 
 ## 10. 런처 해제와 원래 상태 복구
 
@@ -244,22 +235,25 @@ a79002592953e8d9ace3e363b3115ce4452c1a0789eb5b17c9bcb032af27f1f6
 위치로 복사합니다. 두 폴더가 있었다면 각각 올바른 위치로 복구해야 합니다.
 원본 `qoh99.exe`, `Config.exe`, `System`, 캐릭터 폴더를 삭제할 필요는 없습니다.
 
-`LauncherBackup`은 런처가 파일별로 처음 보관한 설정 백업입니다. 같은 이름의
+`LauncherBackup` 바로 아래 설정 파일은 런처가 파일별로 처음 보관한 백업입니다. 같은 이름의
 백업을 매번 갱신하지 않으며 원래 경로 구분도 보관하지 않습니다. 따라서 여러 번의
 업데이트 기록이나 두 위치의 키 파일을 모두 보관하는 용도로 사용하지 마세요.
+`portable-*` 하위 폴더는 DLL·필터 교체 전 백업이며 원래 폴더 구조를 보존합니다.
+화면 패치를 해제하거나 이전 DLL을 복구한 후에는 원본 `qoh99.exe`로 실행하세요.
+포터블 런처를 다시 실행하면 내장한 DLL·필터를 다시 준비합니다.
 
 ## 11. 문제가 생겼을 때
 
 | 증상 또는 오류 문구 | 확인할 내용 |
 | --- | --- |
-| `QOH-Launcher.exe를 qoh99.exe와 같은 폴더에 놓으세요.` | ZIP을 완전히 풀었는지, 두 EXE가 같은 폴더에 있는지 확인합니다. 원본 게임은 별도로 필요합니다. |
+| `QOH-Launcher.exe를 qoh99.exe와 같은 폴더에 놓으세요.` | 받은 EXE와 원본 게임 EXE가 같은 폴더에 있는지 확인합니다. 원본 게임은 별도로 필요합니다. |
 | `Cannot read:` 또는 설정 읽기 실패 | 오류에 표시된 경로의 파일이 존재하는지 확인합니다. 특히 `LocalConfig/QOHcnf.key`가 있으면 `System`보다 우선합니다. |
 | `Older QOHcnf.key format` / `expected exactly 8044 bytes` | 원본 SE 설정 도구에서 저장하고 닫은 뒤 다시 불러옵니다. 해결되지 않으면 파일을 보존하고 크기·오류 문구를 알려주세요. |
 | `QOH99 or Config.exe is running` | 같은 게임 폴더의 게임과 설정 도구를 닫은 뒤 저장·실행합니다. |
 | `Game configuration changed outside the launcher` | 다른 프로그램이 설정을 바꿨습니다. 그 프로그램을 닫고 **다시 불러오기** 후 필요한 변경을 다시 지정합니다. |
 | `Duplicate keyboard bindings` | 1P·2P의 모든 동작에 서로 다른 키를 지정합니다. |
-| `Missing filter file` / `Missing second filter pass` | ZIP의 `LauncherShaders` 폴더 전체를 다시 복사합니다. `.glsl.pass1` 파일도 필요하며 확장자를 바꾸면 안 됩니다. |
-| `cnc-ddraw.dll patch is missing` | 오류 문구와 달리 실제 배치할 파일 이름은 **`ddraw.dll`**입니다. ZIP에 있는 DLL을 게임 EXE 옆에 복사하세요. |
+| `Missing filter file` / `Missing second filter pass` | 게임과 런처를 닫고 새 런처를 다시 실행하면 내장 필터를 복구합니다. |
+| `cnc-ddraw.dll patch is missing` | 게임과 런처를 닫고 새 런처를 다시 실행하면 `ddraw.dll`을 복구합니다. |
 | `Cannot write:` / `Cannot write display settings` | 게임 폴더의 쓰기 권한과 읽기 전용 여부, 실행 중인 게임·설정 도구를 확인합니다. 사용자가 쓸 수 있는 폴더를 이용하세요. |
 | `not supported by the Escape guard` / `Escape patch signature mismatch` | 지원 EXE와 다른 버전일 수 있습니다. 파일을 보존하고 Esc 차단을 끈 상태로 비교합니다. |
 | 화면이 깨지거나 검게 보임 | 게임을 닫고 **문제 해결: 필터 없이 실행**으로 비교합니다. 사용한 필터·창 크기와 결과를 기록하세요. |
@@ -267,7 +261,7 @@ a79002592953e8d9ace3e363b3115ce4452c1a0789eb5b17c9bcb032af27f1f6
 
 ### Windows가 실행 파일을 경고하는 경우
 
-현재 실행 파일에는 디지털 코드 서명이 없습니다. 배포 출처와 정확한 ZIP 이름,
+현재 실행 파일에는 디지털 코드 서명이 없습니다. 배포 출처와 정확한 EXE 이름,
 체크섬을 확인하세요. 보안 제품이 파일을 차단하거나 경고하면 표시된 이름과 내용을
 기록하고 문의하세요. 보안 기능을 끄거나 경고를 우회해야 설치되는 것으로 안내하지
 않습니다. 해시가 다르거나 출처가 불명확한 파일은 실행하지 마세요.

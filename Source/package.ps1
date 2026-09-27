@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$Version = '0.2.3')
+param([string]$Version = '0.2.4')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -78,7 +78,8 @@ foreach ($name in $licenseNames) { Add-Input "licenses/$name" (Join-Path $licens
 # Explicit inputs prevent accidental inclusion of the original game, saved keys,
 # screenshots, build intermediates, or the icon's source/provenance manifest.
 $sourceNames = @('main.cpp', 'native_keys.h', 'native_keys_test.cpp', 'filter_plan.h',
-    'filter_plan_test.cpp', 'launcher.manifest', 'launcher.rc', 'CMakeLists.txt',
+    'filter_plan_test.cpp', 'display_plan.h', 'display_plan_test.cpp', 'launcher.manifest', 'launcher.rc', 'CMakeLists.txt',
+    'portable_runtime.h', 'portable_runtime.cpp', 'portable_runtime_test.cpp', 'prepare-runtime.ps1',
     'build.ps1', 'prepare-shaders.ps1', 'package.ps1', 'README.md', 'INSTALL.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md')
 foreach ($name in $sourceNames) { Add-Input "Source/$name" (Join-Path $projectDir $name) }
 Add-Input 'Source/distribution/ddraw.ini' (Join-Path $projectDir 'distribution\ddraw.ini')
@@ -97,7 +98,8 @@ $releaseDir = Assert-Child (Join-Path $projectDir 'releases') $projectDir
 $releaseZip = Assert-Child (Join-Path $releaseDir "QOH-Launcher-$Version.zip") $releaseDir
 $manifestOut = "$releaseZip.manifest.json"
 $checksumOut = "$releaseZip.sha256"
-foreach ($path in @($releaseZip, $manifestOut, $checksumOut)) {
+$portableExe = Assert-Child (Join-Path $releaseDir "QOH-Launcher-$Version.exe") $releaseDir
+foreach ($path in @($releaseZip, $manifestOut, $checksumOut, $portableExe, "$portableExe.sha256")) {
     if (Test-Path -LiteralPath $path) { throw "Release already exists; preserve it and select a new version: $path" }
 }
 $runName = 'package-' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
@@ -167,6 +169,11 @@ if ($zipHash -cne (Get-FileHash -LiteralPath $temporaryZip -Algorithm SHA256).Ha
 }
 [IO.File]::WriteAllText($manifestOut, $manifestJson, $utf8)
 [IO.File]::WriteAllText($checksumOut, "$zipHash  $([IO.Path]::GetFileName($releaseZip))`n", $utf8)
+[IO.File]::Copy((Join-Path $contentDir 'QOH-Launcher.exe'), $portableExe, $false)
+$exeHash = (Get-FileHash -LiteralPath $portableExe -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($exeHash -cne $expected['QOH-Launcher.exe']) { throw 'Portable EXE differs from the verified ZIP payload.' }
+[IO.File]::WriteAllText("$portableExe.sha256", "$exeHash  $([IO.Path]::GetFileName($portableExe))`n", $utf8)
+Write-Output "Portable EXE: $portableExe ($exeHash)"
 Write-Output "Package: $releaseZip"
 Write-Output "Verified: $($entries.Count) payload files plus 2 manifest/checksum files; no original game or personal assets."
 Write-Output "SHA256: $zipHash"

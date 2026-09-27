@@ -14,6 +14,8 @@
 #include <algorithm>
 #include "native_keys.h"
 #include "filter_plan.h"
+#include "display_plan.h"
+#include "portable_runtime.h"
 
 namespace fs = std::filesystem;
 using Bytes = std::vector<uint8_t>;
@@ -164,6 +166,15 @@ void BackupOnce(const fs::path& file) {
     auto dest=backupDir/file.filename();
     if (fs::exists(file) && !fs::exists(dest)) fs::copy_file(file,dest);
 }
+
+qoh_display::Size WindowSize(int preset, RECT& work, RECT& frame) {
+    // cnc-ddraw 7.1 centers its window on the primary display.
+    if (!SystemParametersInfoW(SPI_GETWORKAREA,0,&work,0)) throw Error("Cannot read desktop work area");
+    frame={0,0,0,0};
+    if (!AdjustWindowRectEx(&frame,WS_OVERLAPPEDWINDOW,FALSE,0)) throw Error("Cannot measure game window borders");
+    return qoh_display::FitWindow({Widths[preset],Heights[preset]},
+        {work.right-work.left-(frame.right-frame.left),work.bottom-work.top-(frame.bottom-frame.top)});
+}
 void SaveSettings() {
     if (!initialized) throw std::runtime_error("Game settings have not been loaded.");
     if (GameRunning()) throw std::runtime_error("QOH99 or Config.exe is running. Close it before saving settings.");
@@ -174,6 +185,10 @@ void SaveSettings() {
     const int mode=Selected(modeBox), size=Selected(sizeBox), filter=Selected(filterBox), extra=Selected(extraBox);
     bool aspect=SendMessageW(aspectBox,BM_GETCHECK,0,0)==BST_CHECKED;
     bool block=SendMessageW(escapeBox,BM_GETCHECK,0,0)==BST_CHECKED;
+    RECT work{}, frame{};
+    qoh_display::Size windowSize{};
+    if(mode==1) windowSize=WindowSize(size,work,frame);
+    auto newConfig=qoh_keys::EnableNativeFullscreen(qoh_keys::EncodeKeys(current,keys));
     auto plan=qoh_filters::MakePlan(filter,extra);
     if (plan.renderer==L"opengl") {
         if (!fs::is_regular_file(gameDir/plan.shader)) throw std::runtime_error("Missing filter file. Copy the complete LauncherShaders folder from the release ZIP.");
@@ -196,12 +211,16 @@ void SaveSettings() {
     };
     set(L"windowed",L"true"); set(L"fullscreen",mode==0?L"true":L"false");
     set(L"border",mode==0?L"false":L"true"); set(L"maintas",aspect?L"true":L"false");
-    // Use cnc-ddraw's built-in 4:3 constraint; custom aspect_ratio is an
-    // alternative mode and must stay empty to avoid applying both at once.
+    // Preserve the game's reported source ratio; custom aspect_ratio overrides
+    // that ratio within maintas rather than applying a second scaling pass.
     set(L"aspect_ratio",L""); set(L"boxing",L"false");
-    set(L"width",mode==0?L"0":std::to_wstring(Widths[size]));
-    set(L"height",mode==0?L"0":std::to_wstring(Heights[size]));
-    set(L"posX",L"-32000"); set(L"posY",L"-32000");
+    set(L"width",mode==0?L"0":std::to_wstring(windowSize.width));
+    set(L"height",mode==0?L"0":std::to_wstring(windowSize.height));
+    // cnc-ddraw positions the client origin, then adds non-client borders.
+    const int outerWidth=windowSize.width+frame.right-frame.left;
+    const int outerHeight=windowSize.height+frame.bottom-frame.top;
+    set(L"posX",mode==0?L"-32000":std::to_wstring(work.left+(work.right-work.left-outerWidth)/2-frame.left));
+    set(L"posY",mode==0?L"-32000":std::to_wstring(work.top+(work.bottom-work.top-outerHeight)/2-frame.top));
     set(L"nonexclusive",L"true"); set(L"toggle_borderless",L"true"); set(L"savesettings",L"0");
     set(L"renderer",plan.renderer);
     set(L"shader",plan.shader);
@@ -210,7 +229,6 @@ void SaveSettings() {
     auto newDdraw=Read(temp); fs::remove(temp);
     std::string text="[launcher]\r\nmode="+std::to_string(mode)+"\r\nsize="+std::to_string(size)+
         "\r\nfilter="+std::to_string(filter)+"\r\nextra="+std::to_string(extra)+"\r\naspect="+std::to_string(aspect)+"\r\nblockEscape="+std::to_string(block)+"\r\n";
-    auto newConfig=qoh_keys::EncodeKeys(current,keys);
     try {
         AtomicWrite(ddraw,newDdraw);
         AtomicWrite(prefs,Bytes(text.begin(),text.end()));
@@ -222,7 +240,9 @@ void SaveSettings() {
         throw;
     }
     loadedConfig=newConfig; dirty=false;
-    Status(L"저장 완료 · 원본 설정 백업: LauncherBackup");
+    Status(mode==1 && windowSize.height!=Heights[size]
+        ? L"저장 완료 · 창이 화면 안에 들어오도록 크기를 조정했습니다."
+        : L"저장 완료 · 원본 설정 백업: LauncherBackup");
 }
 
 void BlockEscape(HANDLE process) {
@@ -396,6 +416,12 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,LPWSTR,int show) {
         if(HWND existing=FindWindowW(ClassName,nullptr)) { ShowWindow(existing,SW_RESTORE); SetForegroundWindow(existing); }
         if(single) CloseHandle(single); return 0;
     }
+    try { qoh_runtime::Prepare(gameDir,GameRunning()); }
+    catch(const std::exception& error) {
+        MessageBoxW(nullptr,Widen(error.what()).c_str(),L"QOH 런처 - 실행 파일 준비 실패",MB_OK|MB_ICONERROR);
+        if(single) CloseHandle(single);
+        return 1;
+    }
     HDC screen=GetDC(nullptr); dpi=GetDeviceCaps(screen,LOGPIXELSX); ReleaseDC(nullptr,screen);
     bodyFont=CreateFontW(-S(14),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"맑은 고딕");
     titleFont=CreateFontW(-S(25),0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"맑은 고딕");
@@ -411,7 +437,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,LPWSTR,int show) {
     AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(about),L"About");
     RECT rect{0,0,S(800),S(885)}; DWORD style=WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX;
     AdjustWindowRect(&rect,style,TRUE);
-    HWND hwnd=CreateWindowExW(WS_EX_CONTROLPARENT,ClassName,L"QOH99 Launcher 0.2.3",style,CW_USEDEFAULT,CW_USEDEFAULT,rect.right-rect.left,rect.bottom-rect.top,nullptr,menu,instance,nullptr);
+    HWND hwnd=CreateWindowExW(WS_EX_CONTROLPARENT,ClassName,L"QOH99 Launcher 0.2.4",style,CW_USEDEFAULT,CW_USEDEFAULT,rect.right-rect.left,rect.bottom-rect.top,nullptr,menu,instance,nullptr);
     if(!hwnd) return 1;
     ShowWindow(hwnd,show); UpdateWindow(hwnd);
     MSG m{};

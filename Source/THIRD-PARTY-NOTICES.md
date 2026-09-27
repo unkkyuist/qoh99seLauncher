@@ -70,8 +70,11 @@ Each modified second pass begins with `QOH Launcher modification:`.
 - xBRZ's two passes are unchanged. No extra pass is appended to xBRZ.
 
 The prepared source is supplied in `LauncherShaders`, and the preparation
-script is included in `Source`. None of these shaders are compiled into the
-launcher EXE.
+script is included in `Source`. Starting with 0.2.4, the portable launcher also
+embeds these source files, the unmodified cnc-ddraw DLL, and their license
+notices as file resources. It extracts them beside the game before use; the
+shader source is not compiled or linked into the launcher code. The complete
+source package remains available alongside the EXE in the same release.
 
 ## Launcher source, icon, and Windows runtime
 

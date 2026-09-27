@@ -46,6 +46,21 @@ std::vector<std::uint8_t> Fixture(std::uint32_t profile) {
 }
 
 void RunTests() {
+    // Independent file offsets: DWORD header + each 0x2FC-byte profile + 0x6C.
+    const std::size_t fullscreenOffsets[] = {0x70,0x36C,0x668,0x964,0xC60};
+    for (std::uint32_t profile=0; profile<5; ++profile) {
+        auto bytes=Fixture(profile);
+        Put32(bytes,fullscreenOffsets[profile],0);
+        auto expected=bytes;
+        Put32(expected,fullscreenOffsets[profile],1);
+        Require(qoh_keys::EnableNativeFullscreen(bytes)==expected,
+                "Fullscreen normalization changed keys or another profile.");
+        Require(qoh_keys::EnableNativeFullscreen(expected)==expected,
+                "An already fullscreen profile was changed.");
+        Put32(bytes,fullscreenOffsets[profile],2);
+        Throws([&] { qoh_keys::EnableNativeFullscreen(bytes); }, "native display");
+    }
+    Throws([] { qoh_keys::EnableNativeFullscreen(std::vector<std::uint8_t>(7732)); }, "Older");
     for (std::uint32_t profile = 0; profile < 5; ++profile) {
         const auto bytes = Fixture(profile);
         Require(qoh_keys::DecodeKeys(bytes) == qoh_keys::kDefaultKeys,
