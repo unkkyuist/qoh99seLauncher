@@ -10,6 +10,7 @@ System/
 LocalConfig/
 LauncherBackup/
 QOH-Launcher.ini
+QOH-Launcher-target.ini
 QOHcnf.key
 *.avi
 *.mp4

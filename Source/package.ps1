@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$Version = '0.2.4')
+param([string]$Version = '0.2.5')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -80,6 +80,7 @@ foreach ($name in $licenseNames) { Add-Input "licenses/$name" (Join-Path $licens
 $sourceNames = @('main.cpp', 'native_keys.h', 'native_keys_test.cpp', 'filter_plan.h',
     'filter_plan_test.cpp', 'display_plan.h', 'display_plan_test.cpp', 'launcher.manifest', 'launcher.rc', 'CMakeLists.txt',
     'portable_runtime.h', 'portable_runtime.cpp', 'portable_runtime_test.cpp', 'prepare-runtime.ps1',
+    'game_target.h', 'game_target_test.cpp', 'image_date.h', 'image_date_test.cpp',
     'build.ps1', 'prepare-shaders.ps1', 'package.ps1', 'README.md', 'INSTALL.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md')
 foreach ($name in $sourceNames) { Add-Input "Source/$name" (Join-Path $projectDir $name) }
 Add-Input 'Source/distribution/ddraw.ini' (Join-Path $projectDir 'distribution\ddraw.ini')

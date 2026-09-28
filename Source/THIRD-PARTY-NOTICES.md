@@ -86,6 +86,6 @@ Third-party components retain their separate licenses above.
 
 The release launcher uses the statically linked Microsoft C++ runtime. Its
 inspected import table contains only Windows DLLs: `COMCTL32.dll`, `bcrypt.dll`,
-`SHELL32.dll`, `KERNEL32.dll`, `USER32.dll`, and `GDI32.dll`. No Microsoft runtime
+`SHELL32.dll`, `COMDLG32.dll`, `KERNEL32.dll`, `USER32.dll`, and `GDI32.dll`. No Microsoft runtime
 redistributable installer or separate runtime DLL is bundled. This import audit
 is not a claim that every Windows or graphics-driver configuration was tested.

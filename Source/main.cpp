@@ -3,6 +3,7 @@
 #include <tlhelp32.h>
 #include <bcrypt.h>
 #include <shellapi.h>
+#include <commdlg.h>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -16,11 +17,14 @@
 #include "filter_plan.h"
 #include "display_plan.h"
 #include "portable_runtime.h"
+#include "game_target.h"
+#include "image_date.h"
 
 namespace fs = std::filesystem;
 using Bytes = std::vector<uint8_t>;
 constexpr wchar_t ClassName[] = L"QOH99LauncherWindow";
 constexpr wchar_t GameHash[] = L"a79002592953e8d9ace3e363b3115ce4452c1a0789eb5b17c9bcb032af27f1f6";
+constexpr wchar_t XpGameHash[] = L"6283349a597317cf444851a51f1cecc6cf65e6524f184e8db4ebddebd5af46aa";
 constexpr const wchar_t* Actions[] = {L"위", L"아래", L"왼쪽", L"오른쪽", L"버튼 A", L"버튼 B", L"버튼 C", L"버튼 D"};
 constexpr const wchar_t* FilterNames[] = {L"원본 도트 (Nearest)", L"부드럽게 (Bilinear)", L"윤곽 보정 (xBR)", L"윤곽 보정 (xBRZ)", L"브라운관 (CRT Lottes)"};
 constexpr wchar_t YouTubeUrl[]=L"https://www.youtube.com/channel/UCm8aYp4XgUhKFPjOXb_jYng";
@@ -36,14 +40,14 @@ constexpr int Widths[] = {640, 960, 1280, 1440, 1600};
 constexpr int Heights[] = {480, 720, 960, 1080, 1200};
 constexpr const wchar_t* Sizes[] = {L"640 × 480", L"960 × 720", L"1280 × 960", L"1440 × 1080", L"1600 × 1200"};
 enum { IdMode=100, IdSize, IdAspect, IdFilter, IdEsc, IdSave, IdPlay, IdPreview,
-       IdReset, IdReload, IdOriginal, IdExtra, IdSafe, IdKeys=200, IdYouTube=400, IdThreads };
+       IdReset, IdReload, IdOriginal, IdExtra, IdSafe, IdKeys=200, IdYouTube=400, IdThreads, IdChoose };
 
-fs::path gameDir;
+fs::path launcherDir, gameDir, gameExe;
+bool escapeSupported=false;
 fs::path KeyPath() {
-    auto local=gameDir/L"LocalConfig/QOHcnf.key";
-    return fs::exists(local)?local:gameDir/L"System/QOHcnf.key";
+    return qoh_target::KeyPath(gameDir);
 }
-HWND mainWindow{}, modeBox{}, sizeBox{}, aspectBox{}, filterBox{}, extraBox{}, escapeBox{}, statusLabel{}, tipLabel{};
+HWND mainWindow{}, modeBox{}, sizeBox{}, aspectBox{}, filterBox{}, extraBox{}, escapeBox{}, statusLabel{}, tipLabel{}, targetLabel{};
 HWND keyButtons[2][8]{};
 HFONT bodyFont{}, titleFont{};
 HBRUSH bgBrush{};
@@ -90,23 +94,26 @@ std::wstring Sha256(const Bytes& bytes) {
     for (auto c:hash) s<<std::setw(2)<<static_cast<int>(c);
     return s.str();
 }
-bool GameRunning() {
+bool GameRunningAt(const fs::path& directory,const fs::path& selected) {
     HANDLE snapshot=CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
     if (snapshot==INVALID_HANDLE_VALUE) throw Error("Cannot check game process");
     PROCESSENTRY32W e{sizeof(e)}; bool running=false;
     if (Process32FirstW(snapshot,&e)) do {
-        if (_wcsicmp(e.szExeFile,L"qoh99.exe")==0 || _wcsicmp(e.szExeFile,L"Config.exe")==0) {
+        if(e.th32ProcessID!=GetCurrentProcessId()) {
+            const bool candidate=_wcsicmp(e.szExeFile,selected.filename().c_str())==0 ||
+                _wcsicmp(e.szExeFile,L"qoh99.exe")==0 || _wcsicmp(e.szExeFile,L"Config.exe")==0;
             HANDLE p=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,e.th32ProcessID);
             wchar_t name[32768]{}; DWORD count=32768;
-            if (!p) { running=true; break; }
+            if (!p) { if(candidate) { running=true; break; } continue; }
             if (QueryFullProcessImageNameW(p,0,name,&count)) {
-                if (_wcsicmp(fs::path(name).parent_path().c_str(),gameDir.c_str())==0) running=true;
-            } else running=true;
+                if (_wcsicmp(fs::path(name).parent_path().c_str(),directory.c_str())==0) running=true;
+            } else if(candidate) running=true;
             CloseHandle(p);
         }
     } while(!running && Process32NextW(snapshot,&e));
     CloseHandle(snapshot); return running;
 }
+bool GameRunning() { return !gameExe.empty() && GameRunningAt(gameDir,gameExe); }
 std::wstring KeyName(const qoh_keys::KeyBinding& key) {
     if (key.kind) return L"패드 "+std::to_wstring(key.kind)+L" / "+std::to_wstring(key.code);
     if (!key.code) return L"미지정";
@@ -145,8 +152,10 @@ void RefreshDisplay() {
 }
 void LoadSettings() {
     initialized=false;
+    if(gameExe.empty()) throw std::runtime_error("Select a QOH game executable first.");
     loadedConfig=Read(KeyPath());
     keys=qoh_keys::DecodeKeys(loadedConfig);
+    escapeSupported=Sha256(Read(gameExe))==GameHash;
     auto prefs=gameDir/L"QOH-Launcher.ini";
     auto pref=[&](const wchar_t* key,int def,int max) {
         return std::clamp(static_cast<int>(GetPrivateProfileIntW(L"launcher",key,def,prefs.c_str())),0,max);
@@ -156,9 +165,11 @@ void LoadSettings() {
     SendMessageW(filterBox,CB_SETCURSEL,pref(L"filter",0,4),0);
     SendMessageW(extraBox,CB_SETCURSEL,pref(L"extra",0,2),0);
     SendMessageW(aspectBox,BM_SETCHECK,pref(L"aspect",1,1)?BST_CHECKED:BST_UNCHECKED,0);
-    SendMessageW(escapeBox,BM_SETCHECK,pref(L"blockEscape",1,1)?BST_CHECKED:BST_UNCHECKED,0);
+    SendMessageW(escapeBox,BM_SETCHECK,escapeSupported && pref(L"blockEscape",1,1)?BST_CHECKED:BST_UNCHECKED,0);
+    EnableWindow(escapeBox,escapeSupported);
+    SetWindowTextW(escapeBox,escapeSupported?L"Esc를 눌러도 게임이 바로 종료되지 않게 하기":L"이 EXE는 Esc 차단 미지원 · 게임 실행은 가능 (Esc 누르면 종료)");
     CancelCapture(); RefreshDisplay(); dirty=false; initialized=true;
-    Status(L"설정을 불러왔습니다. 게임 시작 시 현재 설정이 적용됩니다.");
+    Status(escapeSupported?L"설정을 불러왔습니다. 게임 시작 시 현재 설정이 적용됩니다.":L"다른 게임 버전입니다. Esc 차단을 제외한 화면·키 설정을 사용할 수 있습니다.");
 }
 void BackupOnce(const fs::path& file) {
     fs::path backupDir=gameDir/L"LauncherBackup";
@@ -190,11 +201,11 @@ void SaveSettings() {
     if(mode==1) windowSize=WindowSize(size,work,frame);
     auto newConfig=qoh_keys::EnableNativeFullscreen(qoh_keys::EncodeKeys(current,keys));
     auto plan=qoh_filters::MakePlan(filter,extra);
+    qoh_runtime::Prepare(gameDir,GameRunning());
     if (plan.renderer==L"opengl") {
         if (!fs::is_regular_file(gameDir/plan.shader)) throw std::runtime_error("Missing filter file. Copy the complete LauncherShaders folder from the release ZIP.");
         if (plan.secondPass && !fs::is_regular_file(gameDir/(plan.shader+L".pass1"))) throw std::runtime_error("Missing second filter pass. Copy the complete LauncherShaders folder.");
     }
-    if (!fs::is_regular_file(gameDir/L"ddraw.dll")) throw std::runtime_error("cnc-ddraw.dll patch is missing.");
     const auto ddraw=gameDir/L"ddraw.ini", prefs=gameDir/L"QOH-Launcher.ini";
     BackupOnce(path); BackupOnce(ddraw); BackupOnce(prefs);
     auto originalDdraw=Read(ddraw);
@@ -206,8 +217,9 @@ void SaveSettings() {
         if (!WritePrivateProfileStringW(L"ddraw",key,val.c_str(),temp.c_str())) throw Error("Cannot write display settings");
         // Per-game entries take precedence over [ddraw]; update existing overrides too.
         wchar_t value[64]{};
-        if (GetPrivateProfileStringW(L"qoh99",key,L"",value,64,temp.c_str())>0)
-            if (!WritePrivateProfileStringW(L"qoh99",key,val.c_str(),temp.c_str())) throw Error("Cannot update game override");
+        auto section=gameExe.stem().wstring();
+        if (GetPrivateProfileStringW(section.c_str(),key,L"",value,64,temp.c_str())>0)
+            if (!WritePrivateProfileStringW(section.c_str(),key,val.c_str(),temp.c_str())) throw Error("Cannot update game override");
     };
     set(L"windowed",L"true"); set(L"fullscreen",mode==0?L"true":L"false");
     set(L"border",mode==0?L"false":L"true"); set(L"maintas",aspect?L"true":L"false");
@@ -265,9 +277,28 @@ void BlockEscape(HANDLE process) {
     verify(0x470e60,after,sizeof(after));
 }
 
+void RepairKnownImageDate(const std::wstring& exeHash) {
+    if(exeHash!=XpGameHash) return;
+    // This exact XP executable compares WIN32_FIND_DATA.ftLastWriteTime at
+    // 0x471784/0x471791 with 2000-04-15 10:17:50 UTC. Archive extraction in a
+    // different timezone can change that timestamp without changing the data.
+    const auto file=gameDir/L"System/WinMes/Tir_Mes1.Img";
+    const auto bytes=Read(file);
+    if(Sha256(bytes)!=L"17a0510f323f0f191e1cf4e47c9d349ec3cb65a244100ef1da07e88fd153473f")
+        throw std::runtime_error("The selected XP version requires its original Tir_Mes1.Img. The file differs from the verified image; it was not changed.");
+    qoh_compat::RestoreImageDate(file,gameDir/L"LauncherBackup/date-compat");
+}
+
 void LaunchGame() {
+    // Recheck the actual file before saving: it may have been replaced since selection.
+    const auto image=Read(gameExe);
+    qoh_target::ValidateImage(image);
+    const auto exeHash=Sha256(image);
+    escapeSupported=exeHash==GameHash;
+    if(!escapeSupported) SendMessageW(escapeBox,BM_SETCHECK,BST_UNCHECKED,0);
     SaveSettings();
-    auto exe=gameDir/L"qoh99.exe";
+    RepairKnownImageDate(exeHash);
+    auto exe=gameExe;
     bool block=SendMessageW(escapeBox,BM_GETCHECK,0,0)==BST_CHECKED;
     if (block && Sha256(Read(exe))!=GameHash)
         throw std::runtime_error("This QOH99.exe version is not supported by the Escape guard. No binary changes were made.");
@@ -285,6 +316,47 @@ void LaunchGame() {
     SetTimer(mainWindow,1,500,nullptr);
     Status(block?L"게임 실행 중 · Esc 즉시 종료 차단 · 종료는 Alt+F4":L"게임 실행 중 · Esc 차단 꺼짐 · 종료는 Alt+F4");
     for(int id=IdMode;id<IdKeys+16;id++) if(HWND c=GetDlgItem(mainWindow,id)) EnableWindow(c,FALSE);
+    EnableWindow(GetDlgItem(mainWindow,IdChoose),FALSE);
+}
+
+void SetGameTarget(const fs::path& path,bool remember) {
+    const auto candidate=fs::canonical(path);
+    if(_wcsicmp(candidate.extension().c_str(),L".exe")!=0)
+        throw std::runtime_error("Select a QOH game EXE.");
+    qoh_target::ValidateImage(Read(candidate));
+    const auto directory=candidate.parent_path();
+    // Validate the selected folder without changing either game's files.
+    qoh_keys::EnableNativeFullscreen(Read(qoh_target::KeyPath(directory)));
+    if(GameRunningAt(directory,candidate)) throw std::runtime_error("Close the game and Config.exe in the selected folder first.");
+    gameExe=candidate; gameDir=directory;
+    SetWindowTextW(targetLabel,gameExe.c_str());
+    for(int id=IdMode;id<IdKeys+16;id++) if(HWND c=GetDlgItem(mainWindow,id)) EnableWindow(c,TRUE);
+    LoadSettings();
+    if(remember) {
+        const auto text=L"\ufeff[target]\r\nexe="+gameExe.wstring()+L"\r\n";
+        const auto data=reinterpret_cast<const uint8_t*>(text.data());
+        AtomicWrite(launcherDir/L"QOH-Launcher-target.ini",Bytes(data,data+text.size()*sizeof(wchar_t)));
+    }
+}
+void ChooseGame() {
+    if(gameProcess || GameRunning()) throw std::runtime_error("Close the current game and Config.exe before switching games.");
+    wchar_t file[32768]{};
+    OPENFILENAMEW dialog{sizeof(dialog)};
+    dialog.hwndOwner=mainWindow; dialog.lpstrFile=file; dialog.nMaxFile=32768;
+    dialog.lpstrFilter=L"QOH 게임 실행 파일 (*.exe)\0*.exe\0\0";
+    dialog.lpstrTitle=L"압축을 푼 게임 폴더의 QOH 실행 파일 선택";
+    dialog.lpstrInitialDir=gameDir.empty()?launcherDir.c_str():gameDir.c_str();
+    dialog.Flags=OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR|OFN_EXPLORER;
+    if(!GetOpenFileNameW(&dialog)) {
+        if(CommDlgExtendedError()) throw std::runtime_error("Cannot open the game file chooser.");
+        return;
+    }
+    if(dirty) {
+        int answer=MessageBoxW(mainWindow,L"다른 게임으로 바꾸기 전에 현재 설정을 저장할까요?",L"게임 선택",MB_YESNOCANCEL|MB_ICONQUESTION);
+        if(answer==IDCANCEL) return;
+        if(answer==IDYES) SaveSettings();
+    }
+    SetGameTarget(file,true);
 }
 
 HWND Control(const wchar_t* cls,const wchar_t* text,DWORD style,int x,int y,int w,int h,int id=0) {
@@ -298,7 +370,8 @@ void InitUI() {
     Label(L"Thread-@tikiland.t",28,-12,740,24);
     auto title=Label(L"QOH99  ·  게임 런처",26,18,740,36);
     SendMessageW(title,WM_SETFONT,reinterpret_cast<WPARAM>(titleFont),TRUE);
-    Label(L"화면과 조작을 설정하고 원본 게임을 시작하세요.",28,59,720,24);
+    targetLabel=Control(L"EDIT",L"실행할 QOH 게임 EXE를 선택하세요",ES_READONLY|ES_AUTOHSCROLL|WS_BORDER,28,56,580,30);
+    Button(L"게임 EXE 선택",620,54,154,34,IdChoose);
     Control(L"BUTTON",L"화면",BS_GROUPBOX,24,96,752,204);
     Label(L"화면 모드",42,125,90,24);
     modeBox=Control(WC_COMBOBOXW,L"",CBS_DROPDOWNLIST|WS_TABSTOP,140,122,265,160,IdMode);
@@ -334,7 +407,13 @@ void InitUI() {
     Button(L"게임 시작",589,713,187,44,IdPlay);
     Button(L"문제 해결: 필터 없이 실행",26,773,278,32,IdSafe);
     Label(L"선택한 창 크기와 키 설정은 유지합니다.",323,779,445,24);
-    LoadSettings();
+    for(int id=IdMode;id<IdKeys+16;id++) if(HWND c=GetDlgItem(mainWindow,id)) EnableWindow(c,FALSE);
+    wchar_t saved[32768]{};
+    auto prefs=launcherDir/L"QOH-Launcher-target.ini";
+    GetPrivateProfileStringW(L"target",L"exe",L"",saved,32768,prefs.c_str());
+    const auto initial=*saved?fs::path(saved):launcherDir/L"qoh99.exe";
+    if(fs::is_regular_file(initial)) SetGameTarget(initial,false);
+    else Status(L"'게임 EXE 선택'으로 원하는 게임을 지정하세요. 마지막 선택은 다음 실행에도 유지됩니다.");
 }
 
 LRESULT CALLBACK WndProc(HWND w,UINT msg,WPARAM wp,LPARAM lp) {
@@ -349,6 +428,7 @@ LRESULT CALLBACK WndProc(HWND w,UINT msg,WPARAM wp,LPARAM lp) {
     case WM_COMMAND:
         try {
             int id=LOWORD(wp), notify=HIWORD(wp);
+            if(id==IdChoose) { ChooseGame(); return 0; }
             if(id>=IdKeys && id<IdKeys+16 && !gameProcess && initialized) {
                 capturePlayer=(id-IdKeys)/8; captureAction=(id-IdKeys)%8; RefreshKeys();
                 Status(L"지정할 키를 누르세요. Esc는 입력 취소입니다."); return 0;
@@ -389,6 +469,7 @@ LRESULT CALLBACK WndProc(HWND w,UINT msg,WPARAM wp,LPARAM lp) {
     case WM_TIMER:
         if(gameProcess && WaitForSingleObject(gameProcess,0)==WAIT_OBJECT_0) {
             CloseHandle(gameProcess); gameProcess=nullptr; gamePid=0; KillTimer(w,1);
+            EnableWindow(GetDlgItem(w,IdChoose),TRUE);
             for(int id=IdMode;id<IdKeys+16;id++) if(HWND c=GetDlgItem(w,id)) EnableWindow(c,TRUE);
             try { LoadSettings(); Status(L"게임이 종료되었습니다. 설정을 바꾸거나 다시 시작할 수 있습니다."); } catch(const std::exception& e) { Report(e); }
         }
@@ -407,20 +488,11 @@ LRESULT CALLBACK WndProc(HWND w,UINT msg,WPARAM wp,LPARAM lp) {
 
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,LPWSTR,int show) {
     wchar_t path[32768]{}; GetModuleFileNameW(nullptr,path,32768);
-    gameDir=fs::path(path).parent_path();
-    if(!fs::is_regular_file(gameDir/L"qoh99.exe")) {
-        MessageBoxW(nullptr,L"QOH-Launcher.exe를 qoh99.exe와 같은 폴더에 놓으세요.",L"QOH 런처",MB_OK|MB_ICONERROR); return 1;
-    }
+    launcherDir=fs::path(path).parent_path();
     HANDLE single=CreateMutexW(nullptr,FALSE,L"Local\\QOH99NativeLauncher");
     if(GetLastError()==ERROR_ALREADY_EXISTS) {
         if(HWND existing=FindWindowW(ClassName,nullptr)) { ShowWindow(existing,SW_RESTORE); SetForegroundWindow(existing); }
         if(single) CloseHandle(single); return 0;
-    }
-    try { qoh_runtime::Prepare(gameDir,GameRunning()); }
-    catch(const std::exception& error) {
-        MessageBoxW(nullptr,Widen(error.what()).c_str(),L"QOH 런처 - 실행 파일 준비 실패",MB_OK|MB_ICONERROR);
-        if(single) CloseHandle(single);
-        return 1;
     }
     HDC screen=GetDC(nullptr); dpi=GetDeviceCaps(screen,LOGPIXELSX); ReleaseDC(nullptr,screen);
     bodyFont=CreateFontW(-S(14),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"맑은 고딕");
@@ -437,7 +509,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,LPWSTR,int show) {
     AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(about),L"About");
     RECT rect{0,0,S(800),S(885)}; DWORD style=WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX;
     AdjustWindowRect(&rect,style,TRUE);
-    HWND hwnd=CreateWindowExW(WS_EX_CONTROLPARENT,ClassName,L"QOH99 Launcher 0.2.4",style,CW_USEDEFAULT,CW_USEDEFAULT,rect.right-rect.left,rect.bottom-rect.top,nullptr,menu,instance,nullptr);
+    HWND hwnd=CreateWindowExW(WS_EX_CONTROLPARENT,ClassName,L"QOH99 Launcher 0.2.5",style,CW_USEDEFAULT,CW_USEDEFAULT,rect.right-rect.left,rect.bottom-rect.top,nullptr,menu,instance,nullptr);
     if(!hwnd) return 1;
     ShowWindow(hwnd,show); UpdateWindow(hwnd);
     MSG m{};

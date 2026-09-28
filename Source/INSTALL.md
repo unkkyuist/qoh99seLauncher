@@ -1,4 +1,4 @@
-# QOH99 Launcher 0.2.4 설치 안내
+# QOH99 Launcher 0.2.5 설치 안내
 
 제작·배포: **tikiland**
 
@@ -6,7 +6,7 @@
 방법입니다. 이 패키지만으로는 게임을 할 수 없습니다. 원본 게임, 캐릭터,
 사운드, 오프닝 영상과 개인 설정은 배포 ZIP에 들어 있지 않습니다.
 
-**0.2.4는 호환성 테스트 배포본입니다.** 다른 PC의 화면 잘림은 아직 해결 확인 전입니다.
+**0.2.5는 호환성 테스트 배포본입니다.** 다른 PC의 화면 잘림은 아직 해결 확인 전입니다.
 원본 화면 모드와 창 크기에 대한 보정을 추가했습니다. xBRZ와 1440×1080 창 모드 사용 중
 타이틀·캐릭터 선택 화면에서 응답 없음이 보고되었으며, 원인은 아직 확정되지
 않았습니다. 처음에는 원본 도트와 추가 효과 없음으로 실행하세요.
@@ -27,19 +27,19 @@
 ## 2. EXE 하나 내려받기
 
 1. [프로젝트 Releases](https://github.com/unkkyuist/qoh99seLauncher/releases)를 엽니다.
-2. **0.2.4** 항목의 **Assets**를 펼칩니다.
-3. **`QOH-Launcher-0.2.4.exe`** 하나를 내려받습니다. 압축 해제는 필요 없습니다.
+2. **0.2.5** 항목의 **Assets**를 펼칩니다.
+3. **`QOH-Launcher-0.2.5.exe`** 하나를 내려받습니다. 압축 해제는 필요 없습니다.
 
 GitHub의 초록색 **Code → Download ZIP**과 Releases 아래의 **Source code (zip)**은
-개발 소스용입니다. `QOH-Launcher-0.2.4.zip`은 실행 파일·문서·소스를 함께 보관하려는
+개발 소스용입니다. `QOH-Launcher-0.2.5.zip`은 실행 파일·문서·소스를 함께 보관하려는
 경우의 선택 사항입니다. ZIP을 받았다면 압축을 풀고 그 안의 `QOH-Launcher.exe`만
-게임 폴더에 복사해도 필요한 파일을 자동으로 준비합니다.
+쓰기 가능한 폴더에서 실행한 뒤 게임 EXE를 선택하세요.
 
 다운로드를 확인하려면 같은 배포 항목의 `.exe.sha256` 파일에 적힌 값과 EXE의
 SHA256을 비교할 수 있습니다. PowerShell에서 EXE가 있는 폴더를 연 뒤:
 
 ```powershell
-Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.4.exe' -Algorithm SHA256
+Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.5.exe' -Algorithm SHA256
 ```
 
 출력된 `Hash`가 배포 체크섬과 같아야 합니다. 해시 비교는 내려받은 파일의
@@ -69,11 +69,17 @@ Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.4.exe' -Algorithm SHA256
 기존 `ddraw.ini`와 개인 설정은 첫 실행 시 보존합니다. 게임 전체의 기록을 함께
 보관하려면 위 방식으로 게임 폴더 전체를 복사해 둘 수 있습니다.
 
-## 4. 원본 게임 폴더에 복사하기
+## 4. 실행할 게임 선택하기
 
-받은 `QOH-Launcher-0.2.4.exe`를 **`qoh99.exe`가 있는 폴더 안으로** 복사하고 실행합니다.
-런처가 DLL, 필터, 라이선스를 자동으로 준비합니다. 인터넷 연결이나 별도 설치는
-필요하지 않습니다. 기본 `ddraw.ini`는 기존 파일이 없을 때만 만듭니다.
+받은 `QOH-Launcher-0.2.5.exe`를 쓰기 가능한 폴더에서 실행합니다. 상단의 **게임 EXE 선택**을
+눌러 압축을 푼 QOH 게임 본체를 지정하세요. `Qoh99se_XP.exe` 같은 대용량 분할 압축
+실행 파일이나 `Config.exe`는 게임 본체가 아닙니다. EXE를 선택하는 것만으로 게임 파일을
+수정하지 않습니다. 설정 파일은 현재 지원하는 8044바이트 SE 형식이어야 합니다.
+
+**저장/게임 시작**을 누르면 선택한 게임 폴더에 DLL, 필터, 라이선스를 자동으로
+준비합니다. 인터넷 연결이나 별도 설치는 필요하지 않습니다. 기본 `ddraw.ini`는
+기존 파일이 없을 때만 만듭니다. 마지막 선택은 런처 옆 `QOH-Launcher-target.ini`에
+저장합니다. 화면·키 설정과 백업은 각각의 게임 폴더에 유지됩니다.
 
 다른 DLL이나 필터를 교체할 때는 원래 파일을 먼저 백업합니다. 파일 교체에 실패하면
 이미 교체한 파일을 복구하고 오류를 표시합니다. 복구에도 실패했다는 안내가 나오면
@@ -85,7 +91,6 @@ Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.4.exe' -Algorithm SHA256
 내 QOH99 게임 폴더/
   qoh99.exe                  ← 본인이 가진 원본 게임
   Config.exe                 ← 본인이 가진 원본 설정 도구
-  QOH-Launcher-0.2.4.exe      ← 새 런처
   ddraw.dll
   ddraw.ini
   LauncherShaders/
@@ -100,19 +105,19 @@ Get-FileHash -LiteralPath '.\QOH-Launcher-0.2.4.exe' -Algorithm SHA256
   그 밖의 기존 게임 파일과 폴더
 ```
 
-`내 QOH99 게임 폴더/런처/QOH-Launcher-0.2.4.exe`처럼 한 단계 더 안쪽에
-놓으면 원본 게임을 찾지 못합니다. **두 EXE가 나란히 있는지** 확인하세요.
-현재 버전에는 게임 폴더를 선택하는 설치 마법사가 없습니다.
+런처는 게임과 다른 폴더에 있어도 됩니다. 선택한 파일을 옮겼거나 삭제했다면
+**게임 EXE 선택**으로 다시 지정하세요. 게임 또는 설정 도구가 실행 중일 때는
+다른 게임으로 바꿀 수 없습니다.
 
 ## 5. 처음 실행하기
 
-1. `QOH-Launcher-0.2.4.exe`를 더블클릭합니다.
+1. `QOH-Launcher-0.2.5.exe`를 열고 **게임 EXE 선택**으로 게임 본체를 지정합니다.
 2. 화면 필터를 **원본 도트 (Nearest)**로 선택합니다.
 3. 추가 효과를 **없음**으로 선택합니다.
 4. 처음 비교할 때는 **창 모드**, 화면 안에 들어오는 창 크기와
    **원래 4:3 비율 유지**를 선택합니다.
 5. 키 설정을 확인한 뒤 **게임 시작**을 누릅니다.
-   Esc 지원 버전 오류가 나오면 **Esc 차단 체크를 해제**하고 다시 시작합니다.
+   미지원 버전에서는 Esc 차단이 자동으로 해제되어 표시됩니다.
 
 **게임 시작**은 현재 설정을 저장하고 게임을 실행합니다. **저장**은 실행 없이
 설정만 저장합니다. **게임으로 미리보기**도 현재 설정을 저장한 뒤 실제 게임을
@@ -195,7 +200,7 @@ Esc 차단은 다음 SHA256의 원본 EXE만 지원합니다.
 a79002592953e8d9ace3e363b3115ce4452c1a0789eb5b17c9bcb032af27f1f6
 ```
 
-다른 버전이라는 오류가 나오면 **Esc 차단 체크를 해제한 뒤** 다른 설정을 사용할
+다른 EXE에서는 **Esc 차단만 자동으로 해제·비활성화**하고 나머지 설정을 사용할
 수 있습니다. 이때 Esc의 원래 즉시 종료 동작은 남습니다.
 
 ## 9. 새 버전으로 업데이트하기
@@ -204,8 +209,8 @@ a79002592953e8d9ace3e363b3115ce4452c1a0789eb5b17c9bcb032af27f1f6
 2. 현재 게임 폴더 전체를 새 이름으로 백업합니다. 최초 설치 전 백업도 보관합니다.
 3. 특히 `QOH-Launcher.ini`, `System/QOHcnf.key`, `LocalConfig/QOHcnf.key`와
    `LauncherBackup`은 그대로 보존합니다. 존재하는 항목만 보관하면 됩니다.
-4. 새 버전 EXE 하나를 게임 폴더에 넣습니다.
-5. 새 EXE를 실행하면 필요한 DLL·필터·라이선스가 백업 후 자동으로 준비됩니다.
+4. 새 버전 EXE 하나를 런처 폴더에 넣습니다. `QOH-Launcher-target.ini`를 함께 보존하면 마지막 선택을 기억합니다.
+5. 새 EXE를 실행하여 게임을 선택합니다. 저장/실행할 때 필요한 DLL·필터·라이선스를 준비합니다.
 6. 새 런처를 열고 화면·필터·키·Esc 선택을 확인한 뒤 **저장** 또는 **게임 시작**을 누릅니다.
 
 EXE의 자동 준비 과정은 기존 `QOH-Launcher.ini`, `QOHcnf.key`, `ddraw.ini`를
@@ -240,20 +245,28 @@ EXE의 자동 준비 과정은 기존 `QOH-Launcher.ini`, `QOHcnf.key`, `ddraw.i
 업데이트 기록이나 두 위치의 키 파일을 모두 보관하는 용도로 사용하지 마세요.
 `portable-*` 하위 폴더는 DLL·필터 교체 전 백업이며 원래 폴더 구조를 보존합니다.
 화면 패치를 해제하거나 이전 DLL을 복구한 후에는 원본 `qoh99.exe`로 실행하세요.
-포터블 런처를 다시 실행하면 내장한 DLL·필터를 다시 준비합니다.
+포터블 런처에서 저장/게임 시작을 누르면 내장한 DLL·필터를 다시 준비합니다.
+
+### XP 이미지 날짜 복구
+
+확인된 XP EXE 및 이미지 해시가 일치할 때만 `Tir_Mes1.Img`의 수정 날짜를
+`2000-04-15 10:17:50 UTC`로 복원합니다. 백업은 `LauncherBackup/date-compat`에 있으며,
+`Tir_Mes1.last-write-filetime.txt`에는 원래 Windows FILETIME 값을 기록합니다.
+게임 EXE와 이미지 내용은 수정하지 않습니다. 다른 EXE/이미지에는 자동 적용하지 않습니다.
 
 ## 11. 문제가 생겼을 때
 
 | 증상 또는 오류 문구 | 확인할 내용 |
 | --- | --- |
-| `QOH-Launcher.exe를 qoh99.exe와 같은 폴더에 놓으세요.` | 받은 EXE와 원본 게임 EXE가 같은 폴더에 있는지 확인합니다. 원본 게임은 별도로 필요합니다. |
+| 실행할 게임이 선택되지 않음 | 상단 **게임 EXE 선택**으로 압축을 푼 게임 본체를 지정합니다. |
+| `Tir_Mes1.Img`가 표시되는 게임 오류 | 확인된 XP 버전은 수정 날짜 검사 문제가 있어 0.2.5가 원래 날짜를 복원합니다. 이미지 내용이 다르면 자동 수정하지 않습니다. |
 | `Cannot read:` 또는 설정 읽기 실패 | 오류에 표시된 경로의 파일이 존재하는지 확인합니다. 특히 `LocalConfig/QOHcnf.key`가 있으면 `System`보다 우선합니다. |
 | `Older QOHcnf.key format` / `expected exactly 8044 bytes` | 원본 SE 설정 도구에서 저장하고 닫은 뒤 다시 불러옵니다. 해결되지 않으면 파일을 보존하고 크기·오류 문구를 알려주세요. |
 | `QOH99 or Config.exe is running` | 같은 게임 폴더의 게임과 설정 도구를 닫은 뒤 저장·실행합니다. |
 | `Game configuration changed outside the launcher` | 다른 프로그램이 설정을 바꿨습니다. 그 프로그램을 닫고 **다시 불러오기** 후 필요한 변경을 다시 지정합니다. |
 | `Duplicate keyboard bindings` | 1P·2P의 모든 동작에 서로 다른 키를 지정합니다. |
-| `Missing filter file` / `Missing second filter pass` | 게임과 런처를 닫고 새 런처를 다시 실행하면 내장 필터를 복구합니다. |
-| `cnc-ddraw.dll patch is missing` | 게임과 런처를 닫고 새 런처를 다시 실행하면 `ddraw.dll`을 복구합니다. |
+| `Missing filter file` / `Missing second filter pass` | 게임을 닫고 새 런처에서 저장/게임 시작을 누르면 내장 필터를 복구합니다. |
+| `cnc-ddraw.dll patch is missing` | 게임을 닫고 새 런처에서 저장/게임 시작을 누르면 `ddraw.dll`을 복구합니다. |
 | `Cannot write:` / `Cannot write display settings` | 게임 폴더의 쓰기 권한과 읽기 전용 여부, 실행 중인 게임·설정 도구를 확인합니다. 사용자가 쓸 수 있는 폴더를 이용하세요. |
 | `not supported by the Escape guard` / `Escape patch signature mismatch` | 지원 EXE와 다른 버전일 수 있습니다. 파일을 보존하고 Esc 차단을 끈 상태로 비교합니다. |
 | 화면이 깨지거나 검게 보임 | 게임을 닫고 **문제 해결: 필터 없이 실행**으로 비교합니다. 사용한 필터·창 크기와 결과를 기록하세요. |
