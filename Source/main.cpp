@@ -323,7 +323,12 @@ void LaunchGame(bool netplay=false) {
     STARTUPINFOW si{sizeof(si)}; PROCESS_INFORMATION pi{};
     std::wstring cmd=L"\""+exe.wstring()+L"\"";
     if(netplay) cmd+=L" net";
-    if (!CreateProcessW(exe.c_str(),cmd.data(),nullptr,nullptr,FALSE,CREATE_SUSPENDED,nullptr,gameDir.c_str(),&si,&pi)) throw Error("Cannot start QOH99");
+    if (!CreateProcessW(exe.c_str(),cmd.data(),nullptr,nullptr,FALSE,CREATE_SUSPENDED,nullptr,gameDir.c_str(),&si,&pi)) {
+        const DWORD error=GetLastError();
+        if(error==ERROR_ELEVATION_REQUIRED)
+            throw std::runtime_error("관리자 권한이 필요하여 게임을 실행하지 못했습니다.\n\n런처를 닫은 뒤 런처 EXE를 우클릭하고 '관리자 권한으로 실행'을 선택해 주세요.\n\n게임 EXE의 속성 > 호환성에서 '관리자 권한으로 이 프로그램 실행'이 켜져 있다면, 필요하지 않은 경우 해당 설정을 해제해도 됩니다.\n\n(Windows 오류 740)");
+        throw std::runtime_error("Cannot start QOH99 (Win32="+std::to_string(error)+")");
+    }
     try {
         if (ResumeThread(pi.hThread)==static_cast<DWORD>(-1)) throw Error("Cannot resume QOH99");
     } catch (...) {
