@@ -116,15 +116,21 @@ inline std::vector<std::uint8_t> EncodeKeys(const std::vector<std::uint8_t>& ori
 // cnc-ddraw expects the game itself to request fullscreen; its own windowed
 // option then controls presentation. QOH stores this DWORD in each profile.
 inline std::vector<std::uint8_t> EnableNativeFullscreen(
-        const std::vector<std::uint8_t>& original) {
+        const std::vector<std::uint8_t>& original, bool allProfiles = false) {
     detail::Validate(original);
-    const auto profile = detail::Read32(original, 0);
-    const auto offset = 4 + profile * kProfileStride + 0x6C;
-    if (detail::Read32(original, offset) > 1) {
-        throw std::runtime_error("Unsupported native display setting. Open Config.exe and save the fullscreen setting first.");
-    }
     auto result = original;
-    detail::Write32(result, offset, 1);
+    // The game can select another profile on a subsequent direct EXE launch.
+    // Presentation belongs to cnc-ddraw for every profile, not just the active one.
+    const auto active = detail::Read32(original, 0);
+    const std::size_t first = allProfiles ? 0 : active;
+    const std::size_t end = allProfiles ? kProfileCount : active + 1;
+    for (std::size_t profile = first; profile < end; ++profile) {
+        const auto offset = 4 + profile * kProfileStride + 0x6C;
+        if (detail::Read32(original, offset) > 1) {
+            throw std::runtime_error("Unsupported native display setting. Open Config.exe and save the fullscreen setting first.");
+        }
+        detail::Write32(result, offset, 1);
+    }
     return result;
 }
 
