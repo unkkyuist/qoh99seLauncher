@@ -19,6 +19,7 @@
 #include "portable_runtime.h"
 #include "game_target.h"
 #include "image_date.h"
+#include "exe_compat.h"
 
 namespace fs = std::filesystem;
 using Bytes = std::vector<uint8_t>;
@@ -40,7 +41,7 @@ constexpr int Widths[] = {640, 960, 1280, 1440, 1600};
 constexpr int Heights[] = {480, 720, 960, 1080, 1200};
 constexpr const wchar_t* Sizes[] = {L"640 × 480", L"960 × 720", L"1280 × 960", L"1440 × 1080", L"1600 × 1200"};
 enum { IdMode=100, IdSize, IdAspect, IdFilter, IdEsc, IdSave, IdPlay, IdPreview,
-       IdReset, IdReload, IdOriginal, IdExtra, IdSafe, IdKeys=200, IdYouTube=400, IdThreads, IdChoose };
+       IdReset, IdReload, IdOriginal, IdExtra, IdSafe, IdNet, IdKeys=200, IdYouTube=400, IdThreads, IdChoose };
 
 fs::path launcherDir, gameDir, gameExe;
 bool escapeSupported=false;
@@ -93,6 +94,13 @@ std::wstring Sha256(const Bytes& bytes) {
     std::wostringstream s; s<<std::hex<<std::setfill(L'0');
     for (auto c:hash) s<<std::setw(2)<<static_cast<int>(c);
     return s.str();
+}
+std::wstring KnownGameHash(const Bytes& image) {
+    for(bool xp:{false,true}) {
+        const auto expected=xp?XpGameHash:GameHash;
+        if(Sha256(qoh_exe::Canonical(image,xp))==expected) return expected;
+    }
+    return L"";
 }
 bool GameRunningAt(const fs::path& directory,const fs::path& selected) {
     HANDLE snapshot=CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
@@ -155,7 +163,7 @@ void LoadSettings() {
     if(gameExe.empty()) throw std::runtime_error("Select a QOH game executable first.");
     loadedConfig=Read(KeyPath());
     keys=qoh_keys::DecodeKeys(loadedConfig);
-    escapeSupported=Sha256(Read(gameExe))==GameHash;
+    escapeSupported=!KnownGameHash(Read(gameExe)).empty();
     auto prefs=gameDir/L"QOH-Launcher.ini";
     auto pref=[&](const wchar_t* key,int def,int max) {
         return std::clamp(static_cast<int>(GetPrivateProfileIntW(L"launcher",key,def,prefs.c_str())),0,max);
@@ -186,20 +194,33 @@ qoh_display::Size WindowSize(int preset, RECT& work, RECT& frame) {
     return qoh_display::FitWindow({Widths[preset],Heights[preset]},
         {work.right-work.left-(frame.right-frame.left),work.bottom-work.top-(frame.bottom-frame.top)});
 }
+void RepairKnownImageDate(const std::wstring& exeHash);
 void SaveSettings() {
     if (!initialized) throw std::runtime_error("Game settings have not been loaded.");
     if (GameRunning()) throw std::runtime_error("QOH99 or Config.exe is running. Close it before saving settings.");
     if (DuplicateKeys()) throw std::runtime_error("Duplicate keyboard bindings. Assign unique keys to both players.");
+    const auto image=Read(gameExe);
+    qoh_target::ValidateImage(image);
+    const auto exeHash=KnownGameHash(image);
     auto path=KeyPath();
     auto current=Read(path);
     if (current!=loadedConfig) throw std::runtime_error("Game configuration changed outside the launcher. Click Reload before saving.");
     const int mode=Selected(modeBox), size=Selected(sizeBox), filter=Selected(filterBox), extra=Selected(extraBox);
     bool aspect=SendMessageW(aspectBox,BM_GETCHECK,0,0)==BST_CHECKED;
     bool block=SendMessageW(escapeBox,BM_GETCHECK,0,0)==BST_CHECKED;
+    const bool patchExe=!exeHash.empty();
+    const auto canonical=patchExe?qoh_exe::Canonical(image,exeHash==XpGameHash):image;
+    const auto patched=patchExe?qoh_exe::Apply(canonical,exeHash==XpGameHash,block):image;
     RECT work{}, frame{};
     qoh_display::Size windowSize{};
     if(mode==1) windowSize=WindowSize(size,work,frame);
-    auto newConfig=qoh_keys::EnableNativeFullscreen(qoh_keys::EncodeKeys(current,keys));
+    auto newConfig=qoh_keys::EnableNativeFullscreen(qoh_keys::EncodeKeys(current,keys),true);
+    // QOH falls back to System when LocalConfig is unavailable. Preserve that
+    // file's bindings/profile while making its display mode safe as well.
+    const auto fallback=gameDir/L"System/QOHcnf.key";
+    const bool updateFallback=path!=fallback && fs::is_regular_file(fallback);
+    const auto oldFallback=updateFallback?Read(fallback):Bytes{};
+    const auto newFallback=updateFallback?qoh_keys::EnableNativeFullscreen(oldFallback,true):Bytes{};
     auto plan=qoh_filters::MakePlan(filter,extra);
     qoh_runtime::Prepare(gameDir,GameRunning());
     if (plan.renderer==L"opengl") {
@@ -208,6 +229,20 @@ void SaveSettings() {
     }
     const auto ddraw=gameDir/L"ddraw.ini", prefs=gameDir/L"QOH-Launcher.ini";
     BackupOnce(path); BackupOnce(ddraw); BackupOnce(prefs);
+    if(patchExe) {
+        const auto backup=gameDir/L"LauncherBackup/direct-launch"/exeHash/gameExe.filename();
+        fs::create_directories(backup.parent_path());
+        if(fs::exists(backup)) {
+            if(Sha256(Read(backup))!=exeHash) throw std::runtime_error("Original EXE backup differs. Save cancelled.");
+        } else AtomicWrite(backup,canonical);
+    }
+    if(updateFallback) {
+        const auto backup=gameDir/L"LauncherBackup/direct-launch/System/QOHcnf.key";
+        fs::create_directories(backup.parent_path());
+        if(!fs::exists(backup)) fs::copy_file(fallback,backup);
+    }
+    // Persist XP compatibility on Save too, before the user starts the EXE directly.
+    RepairKnownImageDate(exeHash);
     auto originalDdraw=Read(ddraw);
     bool prefsExisted=fs::exists(prefs); auto originalPrefs=prefsExisted?Read(prefs):Bytes{};
     // Edit a temporary INI through the Windows API, preserving unrelated settings.
@@ -245,36 +280,20 @@ void SaveSettings() {
         AtomicWrite(ddraw,newDdraw);
         AtomicWrite(prefs,Bytes(text.begin(),text.end()));
         AtomicWrite(path,newConfig);
+        if(updateFallback) AtomicWrite(fallback,newFallback);
+        if(patched!=image) AtomicWrite(gameExe,patched);
     } catch (...) {
         // Best-effort rollback uses exact snapshots, not defaults.
         try { AtomicWrite(ddraw,originalDdraw); AtomicWrite(path,current);
+              if(updateFallback) AtomicWrite(fallback,oldFallback);
+              if(patched!=image) AtomicWrite(gameExe,image);
               if (prefsExisted) AtomicWrite(prefs,originalPrefs); else fs::remove(prefs); } catch (...) {}
         throw;
     }
     loadedConfig=newConfig; dirty=false;
     Status(mode==1 && windowSize.height!=Heights[size]
         ? L"저장 완료 · 창이 화면 안에 들어오도록 크기를 조정했습니다."
-        : L"저장 완료 · 원본 설정 백업: LauncherBackup");
-}
-
-void BlockEscape(HANDLE process) {
-    // Original fixed-base executable: Escape's jump-table entry alone targets DestroyWindow.
-    const BYTE before[]={0x0f,0x0e,0x47,0x00}, after[]={0x0f,0x0b,0x47,0x00};
-    const BYTE epilogue[]={0x5f,0x5e,0x5d,0x33,0xc0,0x5b,0x83,0xc4,0x40,0xc2,0x10,0x00};
-    const BYTE destroy[]={0x55,0xff,0x15,0xc4,0x91,0x49,0x00,0xe9,0xe3,0xfc,0xff,0xff};
-    auto verify=[&](uintptr_t addr,const BYTE* expected,size_t len) {
-        BYTE actual[16]{}; SIZE_T got{};
-        if (!ReadProcessMemory(process,reinterpret_cast<void*>(addr),actual,len,&got) || got!=len || !std::equal(actual,actual+len,expected))
-            throw std::runtime_error("Escape patch signature mismatch. Game was not started.");
-    };
-    verify(0x470e60,before,sizeof(before)); verify(0x470b0f,epilogue,sizeof(epilogue)); verify(0x470e0f,destroy,sizeof(destroy));
-    DWORD old{}, ignored{}; SIZE_T done{};
-    void* target=reinterpret_cast<void*>(0x470e60);
-    if (!VirtualProtectEx(process,target,4,PAGE_EXECUTE_READWRITE,&old)) throw Error("Escape patch protection failed");
-    BOOL written=WriteProcessMemory(process,target,after,4,&done);
-    BOOL restored=VirtualProtectEx(process,target,4,old,&ignored);
-    if (!written || done!=4 || !restored || !FlushInstructionCache(process,target,4)) throw Error("Escape patch failed");
-    verify(0x470e60,after,sizeof(after));
+        : patchExe?L"저장 완료 · 직접 실행에도 화면 보정·Esc 설정 적용 · 백업: LauncherBackup":L"저장 완료 · 이 EXE는 직접 실행 보정 미지원 · 런처에서 실행하세요.");
 }
 
 void RepairKnownImageDate(const std::wstring& exeHash) {
@@ -289,24 +308,23 @@ void RepairKnownImageDate(const std::wstring& exeHash) {
     qoh_compat::RestoreImageDate(file,gameDir/L"LauncherBackup/date-compat");
 }
 
-void LaunchGame() {
+void LaunchGame(bool netplay=false) {
     // Recheck the actual file before saving: it may have been replaced since selection.
     const auto image=Read(gameExe);
     qoh_target::ValidateImage(image);
-    const auto exeHash=Sha256(image);
-    escapeSupported=exeHash==GameHash;
+    const auto exeHash=KnownGameHash(image);
+    escapeSupported=!exeHash.empty();
     if(!escapeSupported) SendMessageW(escapeBox,BM_SETCHECK,BST_UNCHECKED,0);
     SaveSettings();
-    RepairKnownImageDate(exeHash);
     auto exe=gameExe;
     bool block=SendMessageW(escapeBox,BM_GETCHECK,0,0)==BST_CHECKED;
-    if (block && Sha256(Read(exe))!=GameHash)
+    if (block && KnownGameHash(Read(exe)).empty())
         throw std::runtime_error("This QOH99.exe version is not supported by the Escape guard. No binary changes were made.");
     STARTUPINFOW si{sizeof(si)}; PROCESS_INFORMATION pi{};
     std::wstring cmd=L"\""+exe.wstring()+L"\"";
+    if(netplay) cmd+=L" net";
     if (!CreateProcessW(exe.c_str(),cmd.data(),nullptr,nullptr,FALSE,CREATE_SUSPENDED,nullptr,gameDir.c_str(),&si,&pi)) throw Error("Cannot start QOH99");
     try {
-        if (block) BlockEscape(pi.hProcess);
         if (ResumeThread(pi.hThread)==static_cast<DWORD>(-1)) throw Error("Cannot resume QOH99");
     } catch (...) {
         TerminateProcess(pi.hProcess,1); // Only our newly-created, still-suspended child.
@@ -314,7 +332,7 @@ void LaunchGame() {
     }
     CloseHandle(pi.hThread); gameProcess=pi.hProcess; gamePid=pi.dwProcessId;
     SetTimer(mainWindow,1,500,nullptr);
-    Status(block?L"게임 실행 중 · Esc 즉시 종료 차단 · 종료는 Alt+F4":L"게임 실행 중 · Esc 차단 꺼짐 · 종료는 Alt+F4");
+    Status(netplay?L"넷플레이 실행 중 · 연결은 게임의 네트워크 메뉴에서 진행하세요.":block?L"게임 실행 중 · Esc 즉시 종료 차단 · 종료는 Alt+F4":L"게임 실행 중 · Esc 차단 꺼짐 · 종료는 Alt+F4");
     for(int id=IdMode;id<IdKeys+16;id++) if(HWND c=GetDlgItem(mainWindow,id)) EnableWindow(c,FALSE);
     EnableWindow(GetDlgItem(mainWindow,IdChoose),FALSE);
 }
@@ -403,7 +421,7 @@ void InitUI() {
     Button(L"다시 불러오기",26,717,128,36,IdReload);
     Button(L"원본 설정 도구",166,717,137,36,IdOriginal);
     Button(L"저장",315,717,80,36,IdSave);
-    Button(L"게임으로 미리보기",407,717,166,36,IdPreview);
+    Button(L"넷플레이",407,717,166,36,IdNet);
     Button(L"게임 시작",589,713,187,44,IdPlay);
     Button(L"문제 해결: 필터 없이 실행",26,773,278,32,IdSafe);
     Label(L"선택한 창 크기와 키 설정은 유지합니다.",323,779,445,24);
@@ -443,6 +461,7 @@ LRESULT CALLBACK WndProc(HWND w,UINT msg,WPARAM wp,LPARAM lp) {
             }
             if(id==IdSave) { CancelCapture(); SaveSettings(); }
             if(id==IdPlay || id==IdPreview) { CancelCapture(); LaunchGame(); }
+            if(id==IdNet) { CancelCapture(); LaunchGame(true); }
             if(id==IdSafe) {
                 CancelCapture();
                 SendMessageW(filterBox,CB_SETCURSEL,0,0);
@@ -509,7 +528,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,LPWSTR,int show) {
     AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(about),L"About");
     RECT rect{0,0,S(800),S(885)}; DWORD style=WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX;
     AdjustWindowRect(&rect,style,TRUE);
-    HWND hwnd=CreateWindowExW(WS_EX_CONTROLPARENT,ClassName,L"QOH99 Launcher 0.2.5",style,CW_USEDEFAULT,CW_USEDEFAULT,rect.right-rect.left,rect.bottom-rect.top,nullptr,menu,instance,nullptr);
+    HWND hwnd=CreateWindowExW(WS_EX_CONTROLPARENT,ClassName,L"QOH99 Launcher 0.2.6",style,CW_USEDEFAULT,CW_USEDEFAULT,rect.right-rect.left,rect.bottom-rect.top,nullptr,menu,instance,nullptr);
     if(!hwnd) return 1;
     ShowWindow(hwnd,show); UpdateWindow(hwnd);
     MSG m{};

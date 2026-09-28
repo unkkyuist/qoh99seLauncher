@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$Version = '0.2.5')
+param([string]$Version = '0.2.6')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -80,7 +80,7 @@ foreach ($name in $licenseNames) { Add-Input "licenses/$name" (Join-Path $licens
 $sourceNames = @('main.cpp', 'native_keys.h', 'native_keys_test.cpp', 'filter_plan.h',
     'filter_plan_test.cpp', 'display_plan.h', 'display_plan_test.cpp', 'launcher.manifest', 'launcher.rc', 'CMakeLists.txt',
     'portable_runtime.h', 'portable_runtime.cpp', 'portable_runtime_test.cpp', 'prepare-runtime.ps1',
-    'game_target.h', 'game_target_test.cpp', 'image_date.h', 'image_date_test.cpp',
+    'game_target.h', 'game_target_test.cpp', 'image_date.h', 'image_date_test.cpp', 'exe_compat.h', 'DIRECT-LAUNCH.md',
     'build.ps1', 'prepare-shaders.ps1', 'package.ps1', 'README.md', 'INSTALL.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md')
 foreach ($name in $sourceNames) { Add-Input "Source/$name" (Join-Path $projectDir $name) }
 Add-Input 'Source/distribution/ddraw.ini' (Join-Path $projectDir 'distribution\ddraw.ini')
@@ -132,7 +132,14 @@ $checksumLines = @($entries | ForEach-Object { "$($_.sha256)  $($_.path)" })
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $temporaryZip = Assert-Child (Join-Path $stageDir "QOH-Launcher-$Version.zip") $stageDir
-[IO.Compression.ZipFile]::CreateFromDirectory($contentDir, $temporaryZip, [IO.Compression.CompressionLevel]::Optimal, $false)
+$zipWriter = [IO.Compression.ZipFile]::Open($temporaryZip, [IO.Compression.ZipArchiveMode]::Create)
+try {
+    foreach ($file in (Get-ChildItem -LiteralPath $contentDir -File -Recurse)) {
+        $relative = $file.FullName.Substring($contentDir.Length + 1).Replace('\', '/')
+        [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zipWriter, $file.FullName, $relative,
+            [IO.Compression.CompressionLevel]::Optimal) | Out-Null
+    }
+} finally { $zipWriter.Dispose() }
 $expected = @{}
 foreach ($entry in $entries) { $expected[$entry.path] = $entry.sha256 }
 foreach ($name in @('MANIFEST.json', 'SHA256SUMS.txt')) {
